@@ -1,0 +1,1906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>KidStudio Classroom 🎨 - Video Chat & Magic Whiteboard</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Fredoka & Nunito -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;800;900&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome 6.4.0 CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- PeerJS CDN for WebRTC Connections -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+    <style>
+        * {
+            font-family: 'Fredoka', 'Nunito', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Animated Background Mesh Gradient */
+        .bg-pastel-magic {
+            background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 25%, #fbc2eb 50%, #e6c1ee 75%, #a1c4fd 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 16s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Glassmorphism Panels */
+        .bg-card-glass {
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 3px solid rgba(255, 255, 255, 0.95);
+            box-shadow: 0 20px 40px rgba(31, 38, 135, 0.12), inset 0 2px 4px rgba(255, 255, 255, 0.9);
+        }
+
+        /* Bouncy Bubble Buttons */
+        .btn-bubble {
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.12);
+        }
+        .btn-bubble:hover {
+            transform: translateY(-3px) scale(1.03);
+            box-shadow: 0 10px 0 rgba(0, 0, 0, 0.1);
+        }
+        .btn-bubble:active {
+            transform: translateY(3px) scale(0.97);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
+        }
+
+        /* Background Canvas Floating Particles */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Active Speaker Glow */
+        .speaking-glow {
+            animation: speakerPulse 1.2s infinite ease-in-out;
+            border-color: #3b82f6 !important;
+        }
+        @keyframes speakerPulse {
+            0% { box-shadow: 0 0 0 0px rgba(59, 130, 246, 0.8); }
+            50% { box-shadow: 0 0 0 14px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0px rgba(59, 130, 246, 0); }
+        }
+
+        /* Tool active state */
+        .tool-active {
+            background-color: #4f46e5 !important;
+            color: white !important;
+            transform: scale(1.08);
+            border-color: #3730a3 !important;
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.45) !important;
+        }
+
+        /* Cursors */
+        .canvas-cursor-pencil { cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='3'><path d='M12 20h9'/><path d='M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'/></svg>") 0 24, pointer; }
+        .canvas-cursor-eraser { cursor: grab; }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(241, 245, 249, 0.6); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #a5b4fc; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+
+        /* Floating Reactions */
+        @keyframes floatUpEmoji {
+            0% { opacity: 1; transform: translateY(0) scale(0.6) rotate(0deg); }
+            50% { opacity: 0.95; transform: translateY(-90px) scale(1.35) rotate(-12deg); }
+            100% { opacity: 0; transform: translateY(-170px) scale(1.6) rotate(15deg); }
+        }
+        .floating-reaction {
+            position: absolute;
+            animation: floatUpEmoji 2.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* AR Video Overlay Canvas */
+        .ar-overlay-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Animated Floating Clouds */
+        .cloud-bg {
+            position: fixed;
+            opacity: 0.35;
+            pointer-events: none;
+            animation: cloudFloat 45s linear infinite;
+            z-index: 0;
+        }
+        @keyframes cloudFloat {
+            0% { transform: translateX(-200px); }
+            100% { transform: translateX(100vw); }
+        }
+
+        /* Toast Container */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .toast-msg {
+            pointer-events: auto;
+            animation: toastIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(-20px) scale(0.85); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Canvas Themes */
+        .canvas-bg-white { background-color: #ffffff !important; }
+        .canvas-bg-grid { 
+            background-color: #ffffff !important; 
+            background-image: radial-gradient(#cbd5e1 1.5px, transparent 1.5px) !important; 
+            background-size: 20px 20px !important; 
+        }
+        .canvas-bg-notebook { 
+            background-color: #fffdf0 !important; 
+            background-image: linear-gradient(#e2e8f0 1px, transparent 1px) !important; 
+            background-size: 100% 28px !important; 
+        }
+        .canvas-bg-sea { 
+            background: linear-gradient(180deg, #bae6fd 0%, #38bdf8 100%) !important; 
+        }
+        .canvas-bg-space { 
+            background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 100%) !important; 
+        }
+        .canvas-bg-chalkboard {
+            background-color: #1e293b !important;
+        }
+    </style>
+</head>
+<body class="bg-pastel-magic min-h-screen overflow-x-hidden text-slate-800 relative select-none">
+
+    <!-- Background Animated Canvas -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Floating Background Cloud SVGs -->
+    <svg class="cloud-bg top-10" width="180" height="90" viewBox="0 0 24 24" fill="white"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>
+    <svg class="cloud-bg top-1/3" style="animation-delay: -18s;" width="220" height="110" viewBox="0 0 24 24" fill="white"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- PRELOADER SPLASH SCREEN -->
+    <div id="preloader-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 text-white">
+        <div class="bg-card-glass text-slate-800 rounded-3xl p-8 max-w-md w-full text-center shadow-2xl relative border-4 border-white">
+            <div class="text-6xl mb-4 animate-bounce inline-block">🚀🎨</div>
+            <h1 class="text-3xl font-black text-indigo-700 mb-1 tracking-wide">KidStudio Classroom</h1>
+            <p class="text-slate-600 font-extrabold text-sm mb-6">Live Video Chat & Collaborative Magic Drawing!</p>
+            
+            <div class="w-full bg-slate-200 rounded-full h-5 mb-3 overflow-hidden p-1 border-2 border-slate-300">
+                <div id="loader-progress" class="bg-gradient-to-r from-yellow-400 via-pink-500 to-indigo-500 h-full rounded-full transition-all duration-300 w-1/12"></div>
+            </div>
+            
+            <p id="loader-tip" class="text-xs font-black text-indigo-600 min-h-[20px] animate-pulse">Sharpening magic colored pencils...</p>
+
+            <button id="btn-enter-app" onclick="app.finishLoading()" class="hidden mt-6 w-full py-4 bg-gradient-to-r from-emerald-400 to-teal-500 hover:from-emerald-500 hover:to-teal-600 text-white font-extrabold text-xl rounded-2xl shadow-lg btn-bubble border-b-4 border-teal-700 flex items-center justify-center gap-2">
+                <span>🎉 START STUDIO PLAYROOM!</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- LOBBY / ONBOARDING SCREEN -->
+    <div id="lobby-screen" class="hidden min-h-screen relative z-10 flex items-center justify-center p-4">
+        <div class="bg-card-glass rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl border-4 border-white my-8">
+            
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-amber-300 text-3xl shadow-md mb-2 border-2 border-white">
+                    🌟
+                </div>
+                <h2 class="text-3xl font-black text-slate-800">Student Sign-In</h2>
+                <p class="text-slate-500 text-xs font-extrabold">Setup your profile & enter your magic studio!</p>
+            </div>
+
+            <form id="onboarding-form" onsubmit="app.handleLobbySubmit(event)" class="space-y-4">
+                
+                <div>
+                    <label class="block text-slate-700 font-extrabold mb-1 text-xs uppercase tracking-wider">🎒 Student Name:</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
+                            <i class="fa-solid fa-user-astronaut text-base"></i>
+                        </span>
+                        <input type="text" id="student-name" required placeholder="e.g. Alex Rainbow" 
+                            class="w-full pl-10 pr-4 py-3 bg-white border-2 border-slate-300 rounded-2xl focus:border-indigo-500 focus:outline-none font-bold text-slate-800 text-sm shadow-inner">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-slate-700 font-extrabold text-xs uppercase tracking-wider">✉️ Student / Parent Email:</label>
+                        <span id="email-status-badge" class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-600">
+                            Checking...
+                        </span>
+                    </div>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
+                            <i class="fa-solid fa-envelope text-base"></i>
+                        </span>
+                        <input type="email" id="student-email" required placeholder="student@school.com" oninput="app.inspectEmail()" 
+                            class="w-full pl-10 pr-4 py-3 bg-white border-2 border-slate-300 rounded-2xl focus:border-indigo-500 focus:outline-none font-bold text-slate-800 text-sm shadow-inner">
+                    </div>
+                    <p id="email-feedback" class="text-[11px] font-bold mt-1 text-slate-500">Please enter a valid email for room safety verification.</p>
+                </div>
+
+                <div>
+                    <label class="block text-slate-700 font-extrabold mb-2 text-xs uppercase tracking-wider">🎨 Choose Mascot Avatar:</label>
+                    <div class="grid grid-cols-4 sm:grid-cols-8 gap-2" id="avatar-selector">
+                        <button type="button" onclick="app.selectAvatar('🐰')" class="avatar-btn p-2 text-2xl bg-white border-2 border-indigo-400 rounded-2xl text-center hover:scale-110 transition shadow-sm tool-active">🐰</button>
+                        <button type="button" onclick="app.selectAvatar('🐼')" class="avatar-btn p-2 text-2xl bg-white border-2 border-slate-200 rounded-2xl text-center hover:scale-110 transition shadow-sm">🐼</button>
+                        <button type="button" onclick="app.selectAvatar('🦖')" class="avatar-btn p-2 text-2xl bg-white border-2 border-slate-200 rounded-2xl text-center hover:scale-110 transition shadow-sm">🦖</button>
+                        <button type="button" onclick="app.selectAvatar('🦄')" class="avatar-btn p-2 text-2xl bg-white border-2 border-slate-200 rounded-2xl text-center hover:scale-110 transition shadow-sm">🦄</button>
+                        <button type="button" onclick="app.selectAvatar('🦊')" class="avatar-btn p-2 text-2xl bg-white border-2 border-slate-200 rounded-2xl text-center hover:scale-110 transition shadow-sm">🦊</button>
+                        <button type="button" onclick="app.selectAvatar('🤖')" class="avatar-btn p-2 text-2xl bg-white border-2 border-slate-200 rounded-2xl text-center hover:scale-110 transition shadow-sm">🤖</button>
+                        <button type="button" onclick="app.selectAvatar('🐯')" class="avatar-btn p-2 text-2xl bg-white border-2 border-slate-200 rounded-2xl text-center hover:scale-110 transition shadow-sm">🐯</button>
+                        <button type="button" onclick="app.selectAvatar('🐱')" class="avatar-btn p-2 text-2xl bg-white border-2 border-slate-200 rounded-2xl text-center hover:scale-110 transition shadow-sm">🐱</button>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <div class="grid grid-cols-2 gap-2 p-1.5 bg-slate-200/80 rounded-2xl">
+                        <button type="button" id="tab-btn-create" onclick="app.setRoomMode('create')" class="py-2.5 font-black text-xs sm:text-sm rounded-xl text-indigo-700 bg-white shadow-md transition">
+                            ✨ Create Room
+                        </button>
+                        <button type="button" id="tab-btn-join" onclick="app.setRoomMode('join')" class="py-2.5 font-black text-xs sm:text-sm rounded-xl text-slate-600 hover:text-slate-800 transition">
+                            🔑 Join Room
+                        </button>
+                    </div>
+                </div>
+
+                <div id="room-fields-container" class="space-y-3 pt-1">
+                    <div>
+                        <label class="block text-slate-700 font-extrabold mb-1 text-xs uppercase tracking-wider" id="room-id-label">🏫 Room Name / Code:</label>
+                        <input type="text" id="room-id-input" required placeholder="e.g. Rainbow-Art-101" 
+                            class="w-full px-4 py-2.5 bg-white border-2 border-slate-300 rounded-2xl focus:border-indigo-500 focus:outline-none font-bold text-slate-800 text-sm shadow-inner">
+                    </div>
+
+                    <div>
+                        <label class="block text-slate-700 font-extrabold mb-1 text-xs uppercase tracking-wider">🔐 Secret Room Password:</label>
+                        <input type="password" id="room-pass-input" required placeholder="Enter secret password" 
+                            class="w-full px-4 py-2.5 bg-white border-2 border-slate-300 rounded-2xl focus:border-indigo-500 focus:outline-none font-bold text-slate-800 text-sm shadow-inner">
+                    </div>
+                </div>
+
+                <button type="submit" id="lobby-submit-btn" class="w-full py-3.5 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 hover:from-indigo-700 hover:to-pink-600 text-white font-black text-lg rounded-2xl shadow-xl btn-bubble border-b-4 border-purple-800 mt-3 flex items-center justify-center gap-2">
+                    <span>🚀 ENTER CLASSROOM STUDIO</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN CLASSROOM INTERFACE -->
+    <div id="classroom-screen" class="hidden min-h-screen relative z-10 flex flex-col h-screen overflow-hidden">
+        
+        <!-- TOP NAVIGATION BAR -->
+        <header class="bg-card-glass px-4 py-2 flex items-center justify-between border-b-4 border-indigo-100 shadow-md z-30 shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-400 to-amber-300 flex items-center justify-center text-xl shadow-md border-2 border-white">
+                    🎨
+                </div>
+                <div>
+                    <h1 class="font-black text-base sm:text-lg text-indigo-700 leading-none">KidStudio Classroom</h1>
+                    <p class="text-[11px] font-extrabold text-slate-500 flex items-center gap-1 mt-0.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span id="header-room-display">Room: Rainbow-Studio</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button id="btn-hand-raise" onclick="app.toggleHandRaise()" class="px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 font-black text-xs rounded-xl btn-bubble flex items-center gap-1.5 border border-amber-300">
+                    <span class="text-sm">✋</span>
+                    <span class="hidden sm:inline">Raise Hand</span>
+                </button>
+
+                <button onclick="app.openRoomInfoModal()" class="px-3 py-1.5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-black text-xs rounded-xl btn-bubble flex items-center gap-1.5 border border-indigo-300">
+                    <i class="fa-solid fa-key text-indigo-500"></i>
+                    <span class="hidden sm:inline">Room Code</span>
+                </button>
+
+                <button onclick="app.leaveClassroom()" class="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs rounded-xl btn-bubble border-b-2 border-rose-800">
+                    <i class="fa-solid fa-right-from-bracket mr-1"></i>
+                    <span>Leave</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN WORKSPACE LAYOUT -->
+        <main class="flex-1 flex flex-col md:flex-row overflow-hidden p-2 gap-2">
+            
+            <!-- LEFT VIDEO PANEL -->
+            <section id="video-panel" class="w-full md:w-80 lg:w-96 flex flex-col gap-2 shrink-0 h-48 md:h-full">
+                <div class="bg-card-glass rounded-2xl p-2.5 flex-1 flex flex-col overflow-hidden border-2 border-indigo-100 shadow-md">
+                    
+                    <div class="flex justify-between items-center mb-2 px-1">
+                        <span class="font-extrabold text-xs text-indigo-700 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-video text-indigo-500"></i> Participants (<span id="user-count-badge">1</span>)
+                        </span>
+                        
+                        <select id="ar-filter-select" onchange="app.changeArFilter(this.value)" class="text-xs font-black bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg px-2 py-1 outline-none">
+                            <option value="none">✨ AR Filter: None</option>
+                            <option value="bunny">🐰 Bunny Ears</option>
+                            <option value="glasses">😎 Cool Glasses</option>
+                            <option value="hat">🥳 Party Hat</option>
+                            <option value="halo">🌈 Rainbow Halo</option>
+                            <option value="sparkles">⭐ Magic Sparkles</option>
+                            <option value="whiskers">🐱 Cat Whiskers</option>
+                        </select>
+                    </div>
+
+                    <div id="video-grid" class="flex-1 overflow-y-auto grid grid-cols-2 md:grid-cols-1 gap-2 pr-1">
+                        
+                        <div id="tile-local" class="relative bg-slate-900 rounded-2xl overflow-hidden border-2 border-indigo-300 shadow-md aspect-video md:aspect-auto md:h-44 flex items-center justify-center transition-all">
+                            <video id="local-video" autoplay muted playsinline class="w-full h-full object-cover -scale-x-100"></video>
+                            
+                            <canvas id="local-ar-canvas" class="ar-overlay-canvas -scale-x-100"></canvas>
+                            
+                            <div class="absolute bottom-1.5 left-1.5 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-xl text-white text-xs font-bold flex items-center gap-1.5 z-20 border border-slate-700">
+                                <span id="my-avatar-badge">🐰</span>
+                                <span id="my-name-tag">You</span>
+                                <span id="my-hand-badge" class="hidden text-xs">✋</span>
+                            </div>
+
+                            <div id="my-muted-icon" class="hidden absolute top-2 right-2 bg-rose-500 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shadow z-20">
+                                <i class="fa-solid fa-microphone-slash"></i>
+                            </div>
+
+                            <div id="reactions-container-local" class="absolute inset-0 pointer-events-none z-30"></div>
+                        </div>
+
+                    </div>
+
+                    <div class="mt-2 pt-2 border-t border-slate-200 flex items-center justify-around bg-slate-100/80 rounded-xl p-1.5">
+                        <button id="btn-toggle-mic" onclick="app.toggleMic()" class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-base shadow btn-bubble hover:bg-indigo-700" title="Mute/Unmute Mic">
+                            <i class="fa-solid fa-microphone"></i>
+                        </button>
+                        
+                        <button id="btn-toggle-cam" onclick="app.toggleCam()" class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-base shadow btn-bubble hover:bg-indigo-700" title="Camera On/Off">
+                            <i class="fa-solid fa-video"></i>
+                        </button>
+
+                        <div class="relative">
+                            <button onclick="app.toggleReactionMenu()" class="w-10 h-10 rounded-xl bg-amber-400 text-slate-800 flex items-center justify-center text-lg shadow btn-bubble hover:bg-amber-500" title="Send Reaction">
+                                😊
+                            </button>
+                            
+                            <div id="reaction-picker-popup" class="hidden absolute bottom-12 left-1/2 -translate-x-1/2 bg-white p-2 rounded-2xl shadow-2xl border-2 border-amber-300 flex gap-2 z-50">
+                                <button onclick="app.sendEmojiReaction('❤️')" class="hover:scale-125 text-xl transition">❤️</button>
+                                <button onclick="app.sendEmojiReaction('⭐')" class="hover:scale-125 text-xl transition">⭐</button>
+                                <button onclick="app.sendEmojiReaction('👏')" class="hover:scale-125 text-xl transition">👏</button>
+                                <button onclick="app.sendEmojiReaction('🎉')" class="hover:scale-125 text-xl transition">🎉</button>
+                                <button onclick="app.sendEmojiReaction('🎨')" class="hover:scale-125 text-xl transition">🎨</button>
+                            </div>
+                        </div>
+
+                        <button id="btn-simulate-peer" onclick="app.addSimulatedClassmate()" class="w-10 h-10 rounded-xl bg-purple-500 hover:bg-purple-600 text-white flex items-center justify-center text-base shadow btn-bubble border-b-2 border-purple-700" title="Simulate Classmate 🤖">
+                            <i class="fa-solid fa-robot"></i>
+                        </button>
+
+                        <button id="btn-invite-copy" onclick="app.inviteClassmate()" class="w-10 h-10 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center text-base shadow btn-bubble border-b-2 border-emerald-700" title="Invite Classmate / Copy Room Code">
+                            <i class="fa-solid fa-share-nodes"></i>
+                        </button>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- CENTER WHITEBOARD CANVAS PANEL -->
+            <section id="canvas-panel" class="flex-1 bg-card-glass rounded-2xl p-2.5 flex flex-col overflow-hidden border-2 border-indigo-100 shadow-md relative">
+                
+                <!-- Whiteboard Toolbar Row 1 -->
+                <div class="flex flex-wrap items-center justify-between gap-1.5 mb-2 p-1.5 bg-slate-100/90 rounded-xl border border-slate-200">
+                    
+                    <div class="flex flex-wrap items-center gap-1">
+                        <!-- Brushes -->
+                        <button onclick="app.setTool('pencil')" id="tool-pencil" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-indigo-50 flex items-center justify-center tool-active" title="Pencil">
+                            <i class="fa-solid fa-pencil"></i>
+                        </button>
+
+                        <button onclick="app.setTool('neon')" id="tool-neon" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-indigo-50 flex items-center justify-center text-sm" title="Neon Glow Pen">
+                            ✨
+                        </button>
+
+                        <button onclick="app.setTool('rainbow')" id="tool-rainbow" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-indigo-50 flex items-center justify-center text-sm" title="Rainbow Brush">
+                            🌈
+                        </button>
+
+                        <button onclick="app.setTool('spray')" id="tool-spray" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-indigo-50 flex items-center justify-center" title="Airbrush / Spray Paint">
+                            <i class="fa-solid fa-spray-can"></i>
+                        </button>
+
+                        <button onclick="app.setTool('calligraphy')" id="tool-calligraphy" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-indigo-50 flex items-center justify-center" title="Calligraphy Brush">
+                            <i class="fa-solid fa-pen-nib"></i>
+                        </button>
+
+                        <div class="h-6 w-px bg-slate-300 mx-0.5"></div>
+
+                        <!-- Shapes -->
+                        <button onclick="app.setTool('line')" id="tool-line" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-indigo-50 flex items-center justify-center" title="Straight Line">
+                            <i class="fa-solid fa-slash"></i>
+                        </button>
+
+                        <button onclick="app.setTool('arrow')" id="tool-arrow" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-indigo-50 flex items-center justify-center" title="Arrow">
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+
+                        <button onclick="app.setTool('shape-star')" id="tool-shape-star" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-amber-500 hover:bg-amber-50 flex items-center justify-center" title="Star ⭐">
+                            <i class="fa-solid fa-star"></i>
+                        </button>
+
+                        <button onclick="app.setTool('shape-heart')" id="tool-shape-heart" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-rose-500 hover:bg-rose-50 flex items-center justify-center" title="Heart ❤️">
+                            <i class="fa-solid fa-heart"></i>
+                        </button>
+
+                        <button onclick="app.setTool('shape-circle')" id="tool-shape-circle" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-indigo-500 hover:bg-indigo-50 flex items-center justify-center" title="Circle ⭕">
+                            <i class="fa-regular fa-circle"></i>
+                        </button>
+
+                        <button onclick="app.setTool('shape-rect')" id="tool-shape-rect" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-teal-600 hover:bg-teal-50 flex items-center justify-center" title="Rectangle ⬛">
+                            <i class="fa-regular fa-square"></i>
+                        </button>
+
+                        <button onclick="app.setTool('shape-triangle')" id="tool-shape-triangle" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-purple-600 hover:bg-purple-50 flex items-center justify-center" title="Triangle 🔺">
+                            <i class="fa-solid fa-play -rotate-90 text-xs"></i>
+                        </button>
+
+                        <div class="h-6 w-px bg-slate-300 mx-0.5"></div>
+
+                        <!-- Interactive Tools -->
+                        <button onclick="app.setTool('text')" id="tool-text" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-indigo-50 flex items-center justify-center font-black text-sm" title="Add Text">
+                            T
+                        </button>
+
+                        <button onclick="app.setTool('bucket')" id="tool-bucket" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-indigo-50 flex items-center justify-center" title="Flood Fill Bucket">
+                            <i class="fa-solid fa-fill-drip"></i>
+                        </button>
+
+                        <button onclick="app.setTool('eraser')" id="tool-eraser" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-indigo-50 flex items-center justify-center" title="Eraser">
+                            <i class="fa-solid fa-eraser"></i>
+                        </button>
+
+                        <!-- Stamps Palette Dropdown -->
+                        <select id="stamp-selector" onchange="app.setStampTool(this.value)" class="text-xs font-black bg-white border border-slate-300 text-slate-700 rounded-xl px-2 h-9 outline-none cursor-pointer">
+                            <option value="">⭐ Stamps...</option>
+                            <option value="👑">👑 Crown</option>
+                            <option value="🎈">🎈 Balloon</option>
+                            <option value="☀️">☀️ Sun</option>
+                            <option value="🦁">🦁 Lion</option>
+                            <option value="🏆">🏆 Trophy</option>
+                            <option value="✨">✨ Sparkle</option>
+                            <option value="🌈">🌈 Rainbow</option>
+                            <option value="🌸">🌸 Flower</option>
+                            <option value="🚀">🚀 Rocket</option>
+                            <option value="🐱">🐱 Kitten</option>
+                            <option value="🎨">🎨 Palette</option>
+                        </select>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex items-center gap-1">
+                        <!-- Symmetry Mode -->
+                        <button id="btn-symmetry" onclick="app.toggleSymmetry()" class="px-2 h-9 rounded-xl bg-white border border-slate-300 text-indigo-700 hover:bg-indigo-50 flex items-center gap-1 text-xs font-black" title="Kaleidoscope Symmetry Mode">
+                            <i class="fa-solid fa-bahai"></i> <span id="symmetry-label">Sym: Off</span>
+                        </button>
+
+                        <button onclick="app.undoCanvas()" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center justify-center" title="Undo">
+                            <i class="fa-solid fa-rotate-left"></i>
+                        </button>
+                        
+                        <button onclick="app.redoCanvas()" class="p-2 w-9 h-9 rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center justify-center" title="Redo">
+                            <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+
+                        <button onclick="app.clearCanvasPrompt()" class="px-2.5 h-9 bg-rose-100 hover:bg-rose-200 text-rose-700 font-extrabold text-xs rounded-xl flex items-center gap-1 border border-rose-300" title="Clear Whiteboard">
+                            <i class="fa-solid fa-trash-can"></i> Clear
+                        </button>
+
+                        <button onclick="app.downloadCanvas()" class="px-2.5 h-9 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs rounded-xl flex items-center gap-1 shadow btn-bubble border-b-2 border-emerald-700" title="Save PNG Artwork">
+                            <i class="fa-solid fa-download"></i> Save PNG
+                        </button>
+                    </div>
+
+                </div>
+
+                <!-- Whiteboard Toolbar Row 2: Swatches, Size & Alpha -->
+                <div class="flex flex-wrap items-center justify-between gap-2 px-2 py-1 mb-2 bg-slate-50 rounded-xl border border-slate-200">
+                    
+                    <div class="flex items-center gap-1.5 overflow-x-auto py-0.5" id="color-palette-container">
+                        <button onclick="app.setColor('#ef4444')" class="w-6 h-6 rounded-full bg-red-500 ring-2 ring-white shadow hover:scale-110 transition"></button>
+                        <button onclick="app.setColor('#f97316')" class="w-6 h-6 rounded-full bg-orange-500 ring-2 ring-white shadow hover:scale-110 transition"></button>
+                        <button onclick="app.setColor('#eab308')" class="w-6 h-6 rounded-full bg-yellow-500 ring-2 ring-white shadow hover:scale-110 transition"></button>
+                        <button onclick="app.setColor('#22c55e')" class="w-6 h-6 rounded-full bg-green-500 ring-2 ring-white shadow hover:scale-110 transition"></button>
+                        <button onclick="app.setColor('#06b6d4')" class="w-6 h-6 rounded-full bg-cyan-500 ring-2 ring-white shadow hover:scale-110 transition"></button>
+                        <button onclick="app.setColor('#3b82f6')" class="w-6 h-6 rounded-full bg-blue-500 ring-2 ring-white shadow hover:scale-110 transition"></button>
+                        <button onclick="app.setColor('#a855f7')" class="w-6 h-6 rounded-full bg-purple-500 ring-2 ring-white shadow hover:scale-110 transition"></button>
+                        <button onclick="app.setColor('#ec4899')" class="w-6 h-6 rounded-full bg-pink-500 ring-2 ring-white shadow hover:scale-110 transition"></button>
+                        <button onclick="app.setColor('#000000')" class="w-6 h-6 rounded-full bg-black ring-2 ring-white shadow hover:scale-110 transition"></button>
+                        
+                        <label class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 via-rose-500 to-amber-400 cursor-pointer shadow flex items-center justify-center hover:scale-110 transition overflow-hidden">
+                            <input type="color" id="custom-color-picker" onchange="app.setColor(this.value)" class="opacity-0 w-full h-full cursor-pointer">
+                        </label>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-xs font-black text-slate-500">Size:</span>
+                            <input type="range" id="brush-size-slider" min="2" max="60" value="10" oninput="app.setBrushSize(this.value)" class="w-16 sm:w-20 accent-indigo-600 cursor-pointer">
+                            <span id="brush-size-preview" class="w-5 h-5 rounded-full bg-indigo-600 inline-block border border-white shadow-sm"></span>
+                        </div>
+
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-xs font-black text-slate-500">Alpha:</span>
+                            <input type="range" id="brush-alpha-slider" min="0.1" max="1.0" step="0.1" value="1.0" oninput="app.setBrushAlpha(this.value)" class="w-14 accent-indigo-600 cursor-pointer">
+                        </div>
+
+                        <select id="canvas-bg-selector" onchange="app.setCanvasBackground(this.value)" class="text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg px-2 py-1 outline-none cursor-pointer">
+                            <option value="white">📄 Blank White</option>
+                            <option value="grid">📐 Math Grid</option>
+                            <option value="notebook">📝 Notebook</option>
+                            <option value="sea">🌊 Undersea</option>
+                            <option value="space">🚀 Space</option>
+                            <option value="chalkboard">✏️ Chalkboard</option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <!-- HTML5 Paint Canvas -->
+                <div id="canvas-wrapper" class="flex-1 relative rounded-xl overflow-hidden bg-white border-2 border-slate-200 shadow-inner flex items-center justify-center canvas-bg-white">
+                    <canvas id="paint-canvas" class="w-full h-full touch-none canvas-cursor-pencil"></canvas>
+                </div>
+
+            </section>
+
+            <!-- RIGHT CLASSROOM CHAT PANEL -->
+            <section id="chat-panel" class="w-full md:w-72 lg:w-80 bg-card-glass rounded-2xl p-2.5 flex flex-col overflow-hidden border-2 border-indigo-100 shadow-md">
+                
+                <div class="flex items-center justify-between pb-2 border-b border-slate-200">
+                    <span class="font-extrabold text-xs text-indigo-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-comments text-indigo-500"></i> Classroom Chat
+                    </span>
+                    <span class="text-[10px] font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Kids Safe</span>
+                </div>
+
+                <div id="chat-messages" class="flex-1 overflow-y-auto my-2 space-y-2 pr-1 text-xs">
+                    <div class="bg-indigo-50 text-indigo-900 p-2.5 rounded-xl border border-indigo-100 text-xs font-bold">
+                        🎉 Welcome to KidStudio Classroom! Draw together, chat safely, and enjoy!
+                    </div>
+                </div>
+
+                <div class="py-1 flex gap-1 overflow-x-auto mb-2 no-scrollbar">
+                    <button onclick="app.sendQuickPhrase('Look at my drawing! 🎨')" class="px-2.5 py-1 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-[11px] font-black rounded-lg whitespace-nowrap">🎨 Look here!</button>
+                    <button onclick="app.sendQuickPhrase('Awesome job! ⭐')" class="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-800 text-[11px] font-black rounded-lg whitespace-nowrap">⭐ Awesome!</button>
+                    <button onclick="app.sendQuickPhrase('Your turn! ✋')" class="px-2.5 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[11px] font-black rounded-lg whitespace-nowrap">✋ Your turn!</button>
+                    <button onclick="app.sendQuickPhrase('Love it! ❤️')" class="px-2.5 py-1 bg-pink-100 hover:bg-pink-200 text-pink-700 text-[11px] font-black rounded-lg whitespace-nowrap">❤️ Love it!</button>
+                </div>
+
+                <form onsubmit="app.sendChatMessage(event)" class="flex gap-1.5 pt-1 border-t border-slate-200">
+                    <input type="text" id="chat-input-text" placeholder="Type a message..." 
+                        class="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500">
+                    <button type="submit" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow btn-bubble">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ROOM INFO MODAL -->
+    <div id="room-info-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-card-glass rounded-3xl p-6 max-w-sm w-full border-4 border-white shadow-2xl relative">
+            <button onclick="app.closeRoomInfoModal()" class="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-200 text-slate-600 hover:bg-slate-300 flex items-center justify-center font-black">✕</button>
+            
+            <div class="text-center mb-4">
+                <div class="text-4xl mb-1">🔐</div>
+                <h3 class="text-xl font-black text-indigo-700">Room Details</h3>
+                <p class="text-xs font-bold text-slate-500">Share with your classmate to draw together!</p>
+            </div>
+
+            <div class="space-y-3 bg-slate-100/90 p-3.5 rounded-2xl border border-slate-200 text-xs font-extrabold">
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-500">Room Name:</span>
+                    <span id="modal-room-id" class="text-indigo-600 font-black text-sm">--</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-slate-500">Secret Password:</span>
+                    <div class="flex items-center gap-1.5">
+                        <span id="modal-room-pass" class="text-slate-800 font-black">••••••</span>
+                        <button onclick="app.togglePassVisibility()" class="text-slate-400 hover:text-indigo-600"><i class="fa-solid fa-eye"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="app.inviteClassmate()" class="w-full mt-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm rounded-xl shadow btn-bubble flex items-center justify-center gap-2 border-b-2 border-indigo-800">
+                <i class="fa-solid fa-copy"></i>
+                <span>Copy Room Code</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- CLEAR CANVAS CONFIRMATION MODAL -->
+    <div id="clear-confirm-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-card-glass rounded-3xl p-6 max-w-sm w-full border-4 border-white shadow-2xl text-center">
+            <div class="text-5xl mb-2">🧹🎨</div>
+            <h3 class="text-xl font-black text-slate-800 mb-1">Clear Whiteboard?</h3>
+            <p class="text-xs font-extrabold text-slate-500 mb-5">This will erase all drawings on the canvas!</p>
+            
+            <div class="flex gap-2">
+                <button onclick="app.closeClearPrompt()" class="flex-1 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-xs rounded-xl btn-bubble">
+                    Cancel
+                </button>
+                <button onclick="app.confirmClearCanvas()" class="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white font-black text-xs rounded-xl shadow btn-bubble border-b-2 border-rose-800">
+                    Yes, Clear!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TEXT TOOL MODAL OVERLAY -->
+    <div id="text-tool-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-card-glass rounded-3xl p-6 max-w-sm w-full border-4 border-white shadow-2xl text-center">
+            <div class="text-4xl mb-2">🔤</div>
+            <h3 class="text-lg font-black text-indigo-700 mb-1">Type Magic Text</h3>
+            <p class="text-xs font-bold text-slate-500 mb-4">Click location captured! Enter text to add:</p>
+            
+            <input type="text" id="text-tool-input" placeholder="e.g. Hello KidStudio!" 
+                class="w-full px-4 py-2.5 bg-white border-2 border-slate-300 rounded-2xl focus:border-indigo-500 focus:outline-none font-bold text-slate-800 text-sm shadow-inner mb-4">
+
+            <div class="flex gap-2">
+                <button onclick="app.closeTextToolModal()" class="flex-1 py-2 bg-slate-200 text-slate-700 font-black text-xs rounded-xl btn-bubble">Cancel</button>
+                <button onclick="app.applyCanvasText()" class="flex-1 py-2 bg-indigo-600 text-white font-black text-xs rounded-xl shadow btn-bubble">Add Text ✨</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT APPLICATION LOGIC -->
+    <script>
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playPop() {
+                try {
+                    this.init();
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(450, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(900, this.ctx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.08);
+                } catch(e) {}
+            }
+
+            playMagicChime() {
+                try {
+                    this.init();
+                    const notes = [523.25, 659.25, 783.99, 1046.50];
+                    notes.forEach((freq, idx) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.06);
+                        gain.gain.setValueAtTime(0.2, this.ctx.currentTime + idx * 0.06);
+                        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + idx * 0.06 + 0.3);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(this.ctx.currentTime + idx * 0.06);
+                        osc.stop(this.ctx.currentTime + idx * 0.06 + 0.3);
+                    });
+                } catch(e) {}
+            }
+
+            playCheer() {
+                try {
+                    this.init();
+                    const freqs = [392, 523.25, 659.25, 783.99];
+                    freqs.forEach(f => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(f, this.ctx.currentTime);
+                        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.5);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start();
+                        osc.stop(this.ctx.currentTime + 0.5);
+                    });
+                } catch(e) {}
+            }
+
+            playEraser() {
+                try {
+                    this.init();
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(140, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + 0.12);
+                } catch(e) {}
+            }
+        }
+
+        const soundFx = new SoundEngine();
+
+        function showToast(message, icon = "🚀") {
+            soundFx.playMagicChime();
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast-msg bg-slate-900/90 text-white border-2 border-emerald-400 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 backdrop-blur-md text-xs font-black';
+            toast.innerHTML = `
+                <span class="text-xl">${icon}</span>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        class KidStudioApp {
+            constructor() {
+                this.user = {
+                    name: '',
+                    email: '',
+                    avatar: '🐰',
+                    isHost: false
+                };
+                this.room = {
+                    id: 'Rainbow-Studio',
+                    pass: '1234',
+                    mode: 'create'
+                };
+                
+                this.isMicOn = true;
+                this.isCamOn = true;
+                this.isHandRaised = false;
+                this.activeArFilter = 'none';
+                
+                // Drawing Canvas State
+                this.tool = 'pencil';
+                this.color = '#ef4444';
+                this.brushSize = 10;
+                this.opacity = 1.0;
+                this.symmetryMode = 'off'; // 'off', '2-way', '4-way'
+                this.stampEmoji = '👑';
+                this.rainbowHue = 0;
+                this.canvasBg = 'white';
+
+                this.isDrawing = false;
+                this.startX = 0;
+                this.startY = 0;
+                this.lastX = 0;
+                this.lastY = 0;
+                this.tempSnapshot = null;
+                this.textCoords = { x: 0, y: 0 };
+
+                this.undoStack = [];
+                this.redoStack = [];
+
+                this.localStream = null;
+                this.peer = null;
+                this.connections = [];
+                this.broadcastChannel = null;
+
+                this.initBackgroundParticles();
+            }
+
+            initLoader() {
+                const tips = [
+                    "Sharpening colored pencils...",
+                    "Waking up the magic pandas...",
+                    "Setting up video mirrors...",
+                    "Polishing golden stars...",
+                    "Almost ready for creative fun!"
+                ];
+                let progress = 10;
+                let tipIdx = 0;
+                
+                const interval = setInterval(() => {
+                    progress += 20;
+                    if (progress > 100) progress = 100;
+                    document.getElementById('loader-progress').style.width = progress + '%';
+                    
+                    if (tipIdx < tips.length) {
+                        document.getElementById('loader-tip').textContent = tips[tipIdx];
+                        tipIdx++;
+                    }
+
+                    if (progress >= 100) {
+                        clearInterval(interval);
+                        document.getElementById('btn-enter-app').classList.remove('hidden');
+                        document.getElementById('loader-tip').textContent = "✨ Ready to create!";
+                    }
+                }, 300);
+            }
+
+            finishLoading() {
+                soundFx.playMagicChime();
+                document.getElementById('preloader-screen').classList.add('hidden');
+                document.getElementById('lobby-screen').classList.remove('hidden');
+            }
+
+            inspectEmail() {
+                const emailInput = document.getElementById('student-email').value;
+                const statusBadge = document.getElementById('email-status-badge');
+                const feedback = document.getElementById('email-feedback');
+                
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                
+                if (emailInput.trim() === '') {
+                    statusBadge.className = "text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-600";
+                    statusBadge.textContent = "Checking...";
+                    feedback.textContent = "Please enter a valid email for room safety verification.";
+                } else if (emailRegex.test(emailInput)) {
+                    statusBadge.className = "text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300";
+                    statusBadge.textContent = "Valid Email ✔️";
+                    feedback.textContent = "Email format verified! You are ready to enter.";
+                } else {
+                    statusBadge.className = "text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-300";
+                    statusBadge.textContent = "Check Email ❌";
+                    feedback.textContent = "Include '@' and valid domain (e.g. student@school.com).";
+                }
+            }
+
+            selectAvatar(emoji) {
+                this.user.avatar = emoji;
+                soundFx.playPop();
+                document.querySelectorAll('.avatar-btn').forEach(btn => {
+                    if (btn.textContent.includes(emoji)) {
+                        btn.classList.add('tool-active');
+                    } else {
+                        btn.classList.remove('tool-active');
+                    }
+                });
+            }
+
+            setRoomMode(mode) {
+                this.room.mode = mode;
+                soundFx.playPop();
+                const btnCreate = document.getElementById('tab-btn-create');
+                const btnJoin = document.getElementById('tab-btn-join');
+                const submitBtnSpan = document.querySelector('#lobby-submit-btn span');
+                
+                if (mode === 'create') {
+                    btnCreate.className = "py-2.5 font-black text-xs sm:text-sm rounded-xl text-indigo-700 bg-white shadow-md transition";
+                    btnJoin.className = "py-2.5 font-black text-xs sm:text-sm rounded-xl text-slate-600 hover:text-slate-800 transition";
+                    submitBtnSpan.textContent = "🚀 CREATE CLASSROOM STUDIO";
+                } else {
+                    btnJoin.className = "py-2.5 font-black text-xs sm:text-sm rounded-xl text-indigo-700 bg-white shadow-md transition";
+                    btnCreate.className = "py-2.5 font-black text-xs sm:text-sm rounded-xl text-slate-600 hover:text-slate-800 transition";
+                    submitBtnSpan.textContent = "🔑 JOIN MAGIC CLASSROOM";
+                }
+            }
+
+            handleLobbySubmit(e) {
+                e.preventDefault();
+                soundFx.playMagicChime();
+                
+                this.user.name = document.getElementById('student-name').value.trim();
+                this.user.email = document.getElementById('student-email').value.trim();
+                this.room.id = document.getElementById('room-id-input').value.trim() || 'Rainbow-Studio';
+                this.room.pass = document.getElementById('room-pass-input').value.trim() || '1234';
+                this.user.isHost = (this.room.mode === 'create');
+
+                document.getElementById('lobby-screen').classList.add('hidden');
+                document.getElementById('classroom-screen').classList.remove('hidden');
+
+                document.getElementById('header-room-display').textContent = `Room: ${this.room.id}`;
+                document.getElementById('my-name-tag').textContent = `${this.user.name} (You)`;
+                document.getElementById('my-avatar-badge').textContent = this.user.avatar;
+
+                this.initClassroomEngine();
+            }
+
+            async initClassroomEngine() {
+                this.broadcastChannel = new BroadcastChannel(`kidstudio_${this.room.id}`);
+                this.broadcastChannel.onmessage = (event) => this.handleNetworkMessage(event.data);
+
+                this.initPaintCanvas();
+                await this.initLocalCamera();
+                this.initPeerJS();
+
+                this.broadcastMessage({
+                    type: 'user_joined',
+                    user: this.user
+                });
+
+                this.addChatMessage('System', `🎉 ${this.user.name} joined the classroom!`, 'system');
+
+                // Auto add simulated classmate after 4 seconds for interactive testing
+                setTimeout(() => {
+                    if (this.connections.length === 0) {
+                        this.addSimulatedClassmate();
+                    }
+                }, 4000);
+            }
+
+            initPeerJS() {
+                try {
+                    const sanitizedRoom = this.room.id.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+                    const myPeerId = `kidstudio_${sanitizedRoom}_${Math.floor(Math.random()*10000)}`;
+                    
+                    this.peer = new Peer(myPeerId, { debug: 1 });
+
+                    this.peer.on('connection', (conn) => {
+                        this.connections.push(conn);
+                        conn.on('data', (data) => this.handleNetworkMessage(data));
+                    });
+
+                    this.peer.on('call', (call) => {
+                        if (this.localStream) {
+                            call.answer(this.localStream);
+                            call.on('stream', (remoteStream) => {
+                                this.addRemoteVideoTile(call.peer, remoteStream);
+                            });
+                        }
+                    });
+                } catch(e) {
+                    console.warn("PeerJS mesh fallback active.");
+                }
+            }
+
+            async initLocalCamera() {
+                const videoEl = document.getElementById('local-video');
+                try {
+                    this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    videoEl.srcObject = this.localStream;
+                    this.initAudioVisualizer(this.localStream);
+                } catch (err) {
+                    const canvasStream = this.createFallbackCameraStream(this.user.avatar, this.user.name);
+                    videoEl.srcObject = canvasStream;
+                    this.localStream = canvasStream;
+                }
+
+                this.startArOverlayLoop();
+            }
+
+            createFallbackCameraStream(avatar, name) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 320;
+                canvas.height = 240;
+                const ctx = canvas.getContext('2d');
+                
+                setInterval(() => {
+                    ctx.fillStyle = '#1e1b4b';
+                    ctx.fillRect(0, 0, 320, 240);
+                    ctx.font = '54px serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(avatar, 160, 110);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 16px Fredoka';
+                    ctx.fillText(name, 160, 160);
+                }, 100);
+
+                return canvas.captureStream(15);
+            }
+
+            initAudioVisualizer(stream) {
+                try {
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const analyser = audioCtx.createAnalyser();
+                    const source = audioCtx.createMediaStreamSource(stream);
+                    source.connect(analyser);
+                    analyser.fftSize = 64;
+                    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+                    const checkVolume = () => {
+                        analyser.getByteFrequencyData(dataArray);
+                        let sum = 0;
+                        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+                        let average = sum / dataArray.length;
+                        
+                        const tile = document.getElementById('tile-local');
+                        if (average > 25) {
+                            tile.classList.add('speaking-glow');
+                        } else {
+                            tile.classList.remove('speaking-glow');
+                        }
+                        requestAnimationFrame(checkVolume);
+                    };
+                    checkVolume();
+                } catch(e) {}
+            }
+
+            changeArFilter(filterVal) {
+                this.activeArFilter = filterVal;
+                soundFx.playPop();
+            }
+
+            startArOverlayLoop() {
+                const canvas = document.getElementById('local-ar-canvas');
+                const ctx = canvas.getContext('2d');
+                
+                const render = () => {
+                    canvas.width = canvas.clientWidth;
+                    canvas.height = canvas.clientHeight;
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    if (this.activeArFilter !== 'none') {
+                        const centerX = canvas.width / 2;
+                        const centerY = canvas.height / 2;
+
+                        if (this.activeArFilter === 'bunny') {
+                            ctx.font = '64px serif';
+                            ctx.textAlign = 'center';
+                            ctx.fillText('🐰', centerX, 60);
+                        } else if (this.activeArFilter === 'glasses') {
+                            ctx.font = '56px serif';
+                            ctx.textAlign = 'center';
+                            ctx.fillText('😎', centerX, centerY);
+                        } else if (this.activeArFilter === 'hat') {
+                            ctx.font = '56px serif';
+                            ctx.textAlign = 'center';
+                            ctx.fillText('🥳', centerX, 55);
+                        } else if (this.activeArFilter === 'halo') {
+                            ctx.font = '48px serif';
+                            ctx.textAlign = 'center';
+                            ctx.fillText('🌈', centerX, 40);
+                        } else if (this.activeArFilter === 'sparkles') {
+                            ctx.font = '36px serif';
+                            ctx.fillText('✨', centerX - 60, centerY - 40);
+                            ctx.fillText('⭐', centerX + 60, centerY - 20);
+                            ctx.fillText('✨', centerX + 40, centerY + 50);
+                        } else if (this.activeArFilter === 'whiskers') {
+                            ctx.font = '48px serif';
+                            ctx.textAlign = 'center';
+                            ctx.fillText('🐱', centerX, centerY + 10);
+                        }
+                    }
+
+                    requestAnimationFrame(render);
+                };
+                requestAnimationFrame(render);
+            }
+
+            toggleMic() {
+                this.isMicOn = !this.isMicOn;
+                soundFx.playPop();
+                if (this.localStream && this.localStream.getAudioTracks().length > 0) {
+                    this.localStream.getAudioTracks()[0].enabled = this.isMicOn;
+                }
+                const btn = document.getElementById('btn-toggle-mic');
+                const mutedIcon = document.getElementById('my-muted-icon');
+                
+                if (this.isMicOn) {
+                    btn.className = "w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-base shadow btn-bubble hover:bg-indigo-700";
+                    btn.innerHTML = `<i class="fa-solid fa-microphone"></i>`;
+                    mutedIcon.classList.add('hidden');
+                } else {
+                    btn.className = "w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center text-base shadow btn-bubble hover:bg-rose-600";
+                    btn.innerHTML = `<i class="fa-solid fa-microphone-slash"></i>`;
+                    mutedIcon.classList.remove('hidden');
+                }
+            }
+
+            toggleCam() {
+                this.isCamOn = !this.isCamOn;
+                soundFx.playPop();
+                if (this.localStream && this.localStream.getVideoTracks().length > 0) {
+                    this.localStream.getVideoTracks()[0].enabled = this.isCamOn;
+                }
+                const btn = document.getElementById('btn-toggle-cam');
+                if (this.isCamOn) {
+                    btn.className = "w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-base shadow btn-bubble hover:bg-indigo-700";
+                    btn.innerHTML = `<i class="fa-solid fa-video"></i>`;
+                } else {
+                    btn.className = "w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center text-base shadow btn-bubble hover:bg-rose-600";
+                    btn.innerHTML = `<i class="fa-solid fa-video-slash"></i>`;
+                }
+            }
+
+            toggleHandRaise() {
+                this.isHandRaised = !this.isHandRaised;
+                soundFx.playPop();
+                const badge = document.getElementById('my-hand-badge');
+                const btn = document.getElementById('btn-hand-raise');
+                
+                if (this.isHandRaised) {
+                    badge.classList.remove('hidden');
+                    btn.className = "px-3 py-1.5 bg-amber-400 text-slate-900 font-black text-xs rounded-xl btn-bubble flex items-center gap-1.5 border border-amber-500 shadow-lg animate-bounce";
+                    this.addChatMessage('System', `✋ ${this.user.name} raised their hand!`, 'system');
+                } else {
+                    badge.classList.add('hidden');
+                    btn.className = "px-3 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 font-black text-xs rounded-xl btn-bubble flex items-center gap-1.5 border border-amber-300";
+                }
+
+                this.broadcastMessage({
+                    type: 'hand_state',
+                    user: this.user.name,
+                    raised: this.isHandRaised
+                });
+            }
+
+            toggleReactionMenu() {
+                soundFx.playPop();
+                const menu = document.getElementById('reaction-picker-popup');
+                menu.classList.toggle('hidden');
+            }
+
+            sendEmojiReaction(emoji) {
+                soundFx.playMagicChime();
+                document.getElementById('reaction-picker-popup').classList.add('hidden');
+                
+                this.showFloatingReaction('tile-local', emoji);
+                this.broadcastMessage({
+                    type: 'emoji_reaction',
+                    user: this.user.name,
+                    emoji: emoji
+                });
+            }
+
+            showFloatingReaction(containerId, emoji) {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                
+                const el = document.createElement('div');
+                el.className = 'floating-reaction text-4xl';
+                el.textContent = emoji;
+                el.style.left = Math.random() * 60 + 20 + '%';
+                el.style.bottom = '20px';
+                
+                container.appendChild(el);
+                setTimeout(() => el.remove(), 2200);
+            }
+
+            inviteClassmate() {
+                const roomInfoText = `Join my drawing room on KidStudio Classroom! 🎨\nRoom Code: ${this.room.id}\nPassword: ${this.room.pass}`;
+                
+                const textArea = document.createElement('textarea');
+                textArea.value = roomInfoText;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+
+                showToast("Room Code Copied to Clipboard! Share with your classmate! 🚀", "📋");
+                this.closeRoomInfoModal();
+            }
+
+            addSimulatedClassmate() {
+                if (document.getElementById('tile-simulated-1')) {
+                    showToast("Classmate Alex 🐼 is already in room!", "🤖");
+                    return;
+                }
+
+                soundFx.playCheer();
+                const grid = document.getElementById('video-grid');
+                const tile = document.createElement('div');
+                tile.id = 'tile-simulated-1';
+                tile.className = 'relative bg-slate-900 rounded-2xl overflow-hidden border-2 border-indigo-300 shadow-md aspect-video md:aspect-auto md:h-44 flex items-center justify-center';
+                
+                const simStream = this.createFallbackCameraStream('🐼', 'Alex Mascot');
+                const video = document.createElement('video');
+                video.autoplay = true;
+                video.playsinline = true;
+                video.srcObject = simStream;
+                video.className = 'w-full h-full object-cover';
+
+                const badge = document.createElement('div');
+                badge.className = 'absolute bottom-1.5 left-1.5 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-xl text-white text-xs font-bold flex items-center gap-1.5 z-20 border border-slate-700';
+                badge.innerHTML = `<span>🐼</span><span>Alex (AI Friend)</span>`;
+
+                tile.appendChild(video);
+                tile.appendChild(badge);
+                grid.appendChild(tile);
+
+                const countBadge = document.getElementById('user-count-badge');
+                countBadge.textContent = parseInt(countBadge.textContent) + 1;
+
+                this.addChatMessage('System', '🤖 Alex 🐼 joined as a simulated classmate!', 'system');
+                showToast("Simulated Classmate Alex 🐼 joined!", "🎉");
+            }
+
+            addRemoteVideoTile(peerId, stream) {
+                const grid = document.getElementById('video-grid');
+                if (document.getElementById(`tile-${peerId}`)) return;
+
+                const tile = document.createElement('div');
+                tile.id = `tile-${peerId}`;
+                tile.className = 'relative bg-slate-900 rounded-2xl overflow-hidden border-2 border-indigo-300 shadow-md aspect-video md:aspect-auto md:h-44 flex items-center justify-center';
+                
+                const video = document.createElement('video');
+                video.autoplay = true;
+                video.playsinline = true;
+                video.srcObject = stream;
+                video.className = 'w-full h-full object-cover';
+
+                tile.appendChild(video);
+                grid.appendChild(tile);
+
+                const countBadge = document.getElementById('user-count-badge');
+                countBadge.textContent = parseInt(countBadge.textContent) + 1;
+            }
+
+            initPaintCanvas() {
+                const canvas = document.getElementById('paint-canvas');
+                const ctx = canvas.getContext('2d');
+                
+                const resize = () => {
+                    const rect = canvas.parentElement.getBoundingClientRect();
+                    const temp = ctx.getImageData(0, 0, canvas.width || 1, canvas.height || 1);
+                    canvas.width = rect.width;
+                    canvas.height = rect.height;
+                    ctx.putImageData(temp, 0, 0);
+                };
+                
+                resize();
+                window.addEventListener('resize', resize);
+
+                const getCoords = (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    return {
+                        x: clientX - rect.left,
+                        y: clientY - rect.top
+                    };
+                };
+
+                const startDrawing = (e) => {
+                    e.preventDefault();
+                    const coords = getCoords(e);
+                    this.startX = coords.x;
+                    this.startY = coords.y;
+                    this.lastX = coords.x;
+                    this.lastY = coords.y;
+
+                    if (this.tool === 'text') {
+                        this.openTextToolModal(coords.x, coords.y);
+                        return;
+                    }
+
+                    this.saveCanvasState();
+                    this.isDrawing = true;
+
+                    if (this.tool.startsWith('shape-') || this.tool === 'line' || this.tool === 'arrow') {
+                        this.tempSnapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    } else if (this.tool === 'stamp' || this.tool === 'bucket') {
+                        this.executeInstantTool(coords.x, coords.y);
+                        this.isDrawing = false;
+                    }
+                };
+
+                const draw = (e) => {
+                    if (!this.isDrawing) return;
+                    e.preventDefault();
+                    const coords = getCoords(e);
+
+                    ctx.globalAlpha = this.opacity;
+
+                    if (this.tool.startsWith('shape-') || this.tool === 'line' || this.tool === 'arrow') {
+                        ctx.putImageData(this.tempSnapshot, 0, 0);
+                        this.drawShapePreview(ctx, this.startX, this.startY, coords.x, coords.y);
+                        return;
+                    }
+
+                    // Calculate symmetric points for kaleidoscope mode
+                    const pts = this.getSymmetricPoints(coords.x, coords.y, canvas.width, canvas.height);
+                    const lastPts = this.getSymmetricPoints(this.lastX, this.lastY, canvas.width, canvas.height);
+
+                    pts.forEach((pt, i) => {
+                        const lastPt = lastPts[i];
+                        this.executeStrokeTool(ctx, lastPt.x, lastPt.y, pt.x, pt.y);
+                    });
+
+                    this.broadcastMessage({
+                        type: 'draw_stroke',
+                        tool: this.tool,
+                        color: this.color,
+                        size: this.brushSize,
+                        opacity: this.opacity,
+                        fromX: this.lastX,
+                        fromY: this.lastY,
+                        toX: coords.x,
+                        toY: coords.y
+                    });
+
+                    this.lastX = coords.x;
+                    this.lastY = coords.y;
+                };
+
+                const stopDrawing = (e) => {
+                    if (!this.isDrawing) return;
+                    this.isDrawing = false;
+
+                    if (this.tool.startsWith('shape-') || this.tool === 'line' || this.tool === 'arrow') {
+                        if (e) {
+                            const coords = getCoords(e.touches ? e.changedTouches[0] : e);
+                            this.drawShapePreview(ctx, this.startX, this.startY, coords.x, coords.y);
+                        }
+                    }
+                };
+
+                canvas.addEventListener('mousedown', startDrawing);
+                canvas.addEventListener('mousemove', draw);
+                canvas.addEventListener('mouseup', stopDrawing);
+                canvas.addEventListener('mouseleave', stopDrawing);
+
+                canvas.addEventListener('touchstart', startDrawing);
+                canvas.addEventListener('touchmove', draw);
+                canvas.addEventListener('touchend', stopDrawing);
+            }
+
+            executeStrokeTool(ctx, x1, y1, x2, y2) {
+                ctx.lineWidth = this.brushSize;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                if (this.tool === 'pencil') {
+                    ctx.strokeStyle = this.color;
+                    ctx.shadowBlur = 0;
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                } else if (this.tool === 'neon') {
+                    ctx.strokeStyle = this.color;
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 14;
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                } else if (this.tool === 'rainbow') {
+                    this.rainbowHue = (this.rainbowHue + 5) % 360;
+                    ctx.strokeStyle = `hsl(${this.rainbowHue}, 100%, 50%)`;
+                    ctx.shadowBlur = 0;
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                } else if (this.tool === 'spray') {
+                    ctx.fillStyle = this.color;
+                    ctx.shadowBlur = 0;
+                    for (let i = 0; i < 20; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const radius = Math.random() * this.brushSize * 1.5;
+                        ctx.fillRect(x2 + Math.cos(angle) * radius, y2 + Math.sin(angle) * radius, 2, 2);
+                    }
+                } else if (this.tool === 'calligraphy') {
+                    ctx.fillStyle = this.color;
+                    ctx.shadowBlur = 0;
+                    ctx.beginPath();
+                    ctx.moveTo(x1 - this.brushSize, y1 - this.brushSize / 2);
+                    ctx.lineTo(x1 + this.brushSize, y1 + this.brushSize / 2);
+                    ctx.lineTo(x2 + this.brushSize, y2 + this.brushSize / 2);
+                    ctx.lineTo(x2 - this.brushSize, y2 - this.brushSize / 2);
+                    ctx.fill();
+                } else if (this.tool === 'eraser') {
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.shadowBlur = 0;
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                    soundFx.playEraser();
+                }
+            }
+
+            drawShapePreview(ctx, x1, y1, x2, y2) {
+                ctx.strokeStyle = this.color;
+                ctx.fillStyle = this.color;
+                ctx.lineWidth = this.brushSize;
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = this.opacity;
+
+                if (this.tool === 'line') {
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                } else if (this.tool === 'arrow') {
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                    
+                    const angle = Math.atan2(y2 - y1, x2 - x1);
+                    const headLen = this.brushSize * 2.5;
+                    ctx.beginPath();
+                    ctx.moveTo(x2, y2);
+                    ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+                    ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+                    ctx.fill();
+                } else if (this.tool === 'shape-star') {
+                    this.drawStar(ctx, x2, y2, 5, this.brushSize * 3.5, this.brushSize * 1.8);
+                } else if (this.tool === 'shape-heart') {
+                    this.drawHeart(ctx, x2, y2, this.brushSize * 3);
+                } else if (this.tool === 'shape-circle') {
+                    const radius = Math.hypot(x2 - x1, y2 - y1);
+                    ctx.beginPath();
+                    ctx.arc(x1, y1, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (this.tool === 'shape-rect') {
+                    ctx.beginPath();
+                    ctx.rect(x1, y1, x2 - x1, y2 - y1);
+                    ctx.fill();
+                } else if (this.tool === 'shape-triangle') {
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y2);
+                    ctx.lineTo((x1 + x2) / 2, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            }
+
+            executeInstantTool(x, y) {
+                const canvas = document.getElementById('paint-canvas');
+                const ctx = canvas.getContext('2d');
+                soundFx.playPop();
+
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.opacity;
+
+                if (this.tool === 'stamp') {
+                    ctx.font = `${this.brushSize * 4.5}px serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(this.stampEmoji, x, y);
+                } else if (this.tool === 'bucket') {
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+            }
+
+            getSymmetricPoints(x, y, width, height) {
+                if (this.symmetryMode === '2-way') {
+                    return [
+                        { x: x, y: y },
+                        { x: width - x, y: y }
+                    ];
+                } else if (this.symmetryMode === '4-way') {
+                    return [
+                        { x: x, y: y },
+                        { x: width - x, y: y },
+                        { x: x, y: height - y },
+                        { x: width - x, y: height - y }
+                    ];
+                }
+                return [{ x: x, y: y }];
+            }
+
+            toggleSymmetry() {
+                soundFx.playPop();
+                if (this.symmetryMode === 'off') {
+                    this.symmetryMode = '2-way';
+                    document.getElementById('symmetry-label').textContent = 'Sym: 2-Way';
+                } else if (this.symmetryMode === '2-way') {
+                    this.symmetryMode = '4-way';
+                    document.getElementById('symmetry-label').textContent = 'Sym: 4-Way';
+                } else {
+                    this.symmetryMode = 'off';
+                    document.getElementById('symmetry-label').textContent = 'Sym: Off';
+                }
+                showToast(`Kaleidoscope Symmetry set to ${this.symmetryMode.toUpperCase()}`, "✨");
+            }
+
+            drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
+                let rot = Math.PI / 2 * 3;
+                let x = cx;
+                let y = cy;
+                let step = Math.PI / spikes;
+
+                ctx.beginPath();
+                ctx.moveTo(cx, cy - outerRadius);
+                for (let i = 0; i < spikes; i++) {
+                    x = cx + Math.cos(rot) * outerRadius;
+                    y = cy + Math.sin(rot) * outerRadius;
+                    ctx.lineTo(x, y);
+                    rot += step;
+
+                    x = cx + Math.cos(rot) * innerRadius;
+                    y = cy + Math.sin(rot) * innerRadius;
+                    ctx.lineTo(x, y);
+                    rot += step;
+                }
+                ctx.lineTo(cx, cy - outerRadius);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            drawHeart(ctx, x, y, size) {
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.bezierCurveTo(x, y - size / 2, x - size, y - size / 2, x - size, y);
+                ctx.bezierCurveTo(x - size, y + size / 2, x, y + size, x, y + size * 1.2);
+                ctx.bezierCurveTo(x, y + size, x + size, y + size / 2, x + size, y);
+                ctx.bezierCurveTo(x + size, y - size / 2, x, y - size / 2, x, y);
+                ctx.fill();
+            }
+
+            openTextToolModal(x, y) {
+                this.textCoords = { x, y };
+                soundFx.playPop();
+                document.getElementById('text-tool-input').value = '';
+                document.getElementById('text-tool-modal').classList.remove('hidden');
+                document.getElementById('text-tool-input').focus();
+            }
+
+            closeTextToolModal() {
+                soundFx.playPop();
+                document.getElementById('text-tool-modal').classList.add('hidden');
+            }
+
+            applyCanvasText() {
+                const text = document.getElementById('text-tool-input').value.trim();
+                if (!text) return;
+
+                this.saveCanvasState();
+                const canvas = document.getElementById('paint-canvas');
+                const ctx = canvas.getContext('2d');
+                soundFx.playMagicChime();
+
+                ctx.fillStyle = this.color;
+                ctx.font = `bold ${this.brushSize * 2.5}px Fredoka`;
+                ctx.textAlign = 'left';
+                ctx.globalAlpha = this.opacity;
+                ctx.fillText(text, this.textCoords.x, this.textCoords.y);
+
+                this.closeTextToolModal();
+            }
+
+            setCanvasBackground(bgType) {
+                this.canvasBg = bgType;
+                soundFx.playPop();
+                const wrapper = document.getElementById('canvas-wrapper');
+                wrapper.className = `flex-1 relative rounded-xl overflow-hidden border-2 border-slate-200 shadow-inner flex items-center justify-center canvas-bg-${bgType}`;
+            }
+
+            saveCanvasState() {
+                const canvas = document.getElementById('paint-canvas');
+                const ctx = canvas.getContext('2d');
+                this.undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+                if (this.undoStack.length > 25) this.undoStack.shift();
+                this.redoStack = [];
+            }
+
+            undoCanvas() {
+                if (this.undoStack.length === 0) return;
+                soundFx.playPop();
+                const canvas = document.getElementById('paint-canvas');
+                const ctx = canvas.getContext('2d');
+                this.redoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+                const imgData = this.undoStack.pop();
+                ctx.putImageData(imgData, 0, 0);
+            }
+
+            redoCanvas() {
+                if (this.redoStack.length === 0) return;
+                soundFx.playPop();
+                const canvas = document.getElementById('paint-canvas');
+                const ctx = canvas.getContext('2d');
+                this.undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+                const imgData = this.redoStack.pop();
+                ctx.putImageData(imgData, 0, 0);
+            }
+
+            clearCanvasPrompt() {
+                soundFx.playPop();
+                document.getElementById('clear-confirm-modal').classList.remove('hidden');
+            }
+
+            closeClearPrompt() {
+                soundFx.playPop();
+                document.getElementById('clear-confirm-modal').classList.add('hidden');
+            }
+
+            confirmClearCanvas() {
+                soundFx.playEraser();
+                this.saveCanvasState();
+                const canvas = document.getElementById('paint-canvas');
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                this.closeClearPrompt();
+            }
+
+            downloadCanvas() {
+                soundFx.playCheer();
+                confetti({
+                    particleCount: 120,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+
+                const mainCanvas = document.getElementById('paint-canvas');
+                const exportCanvas = document.createElement('canvas');
+                exportCanvas.width = mainCanvas.width;
+                exportCanvas.height = mainCanvas.height;
+                const eCtx = exportCanvas.getContext('2d');
+
+                if (this.canvasBg === 'chalkboard') {
+                    eCtx.fillStyle = '#1e293b';
+                } else if (this.canvasBg === 'sea') {
+                    eCtx.fillStyle = '#38bdf8';
+                } else if (this.canvasBg === 'space') {
+                    eCtx.fillStyle = '#0f172a';
+                } else {
+                    eCtx.fillStyle = '#ffffff';
+                }
+                eCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+
+                eCtx.drawImage(mainCanvas, 0, 0);
+
+                eCtx.fillStyle = (this.canvasBg === 'space' || this.canvasBg === 'chalkboard') ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)';
+                eCtx.font = 'bold 14px Fredoka';
+                eCtx.textAlign = 'right';
+                eCtx.fillText(`KidStudio Classroom 🎨 - Created by ${this.user.name}`, exportCanvas.width - 15, exportCanvas.height - 15);
+
+                const link = document.createElement('a');
+                link.download = `${this.user.name}-Artwork-${Date.now()}.png`;
+                link.href = exportCanvas.toDataURL();
+                link.click();
+            }
+
+            setTool(toolName) {
+                this.tool = toolName;
+                soundFx.playPop();
+                
+                document.querySelectorAll('#canvas-panel button').forEach(btn => {
+                    if (btn.id === `tool-${toolName}`) {
+                        btn.classList.add('tool-active');
+                    } else {
+                        btn.classList.remove('tool-active');
+                    }
+                });
+            }
+
+            setStampTool(emojiVal) {
+                if (!emojiVal) return;
+                this.stampEmoji = emojiVal;
+                this.setTool('stamp');
+            }
+
+            setColor(colorHex) {
+                this.color = colorHex;
+                soundFx.playPop();
+            }
+
+            setBrushSize(sizeVal) {
+                this.brushSize = parseInt(sizeVal);
+                const preview = document.getElementById('brush-size-preview');
+                preview.style.width = Math.min(sizeVal, 24) + 'px';
+                preview.style.height = Math.min(sizeVal, 24) + 'px';
+            }
+
+            setBrushAlpha(alphaVal) {
+                this.opacity = parseFloat(alphaVal);
+                soundFx.playPop();
+            }
+
+            sendChatMessage(e) {
+                e.preventDefault();
+                const input = document.getElementById('chat-input-text');
+                const text = input.value.trim();
+                if (!text) return;
+
+                soundFx.playPop();
+                this.addChatMessage(this.user.name, text, 'user', this.user.avatar);
+                this.broadcastMessage({
+                    type: 'chat',
+                    user: this.user.name,
+                    avatar: this.user.avatar,
+                    text: text
+                });
+
+                input.value = '';
+            }
+
+            sendQuickPhrase(phrase) {
+                soundFx.playPop();
+                this.addChatMessage(this.user.name, phrase, 'user', this.user.avatar);
+                this.broadcastMessage({
+                    type: 'chat',
+                    user: this.user.name,
+                    avatar: this.user.avatar,
+                    text: phrase
+                });
+            }
+
+            addChatMessage(sender, text, type = 'user', avatar = '🐰') {
+                const feed = document.getElementById('chat-messages');
+                const msgEl = document.createElement('div');
+                
+                if (type === 'system') {
+                    msgEl.className = 'bg-amber-50 text-amber-900 p-2 rounded-xl text-xs font-extrabold border border-amber-200 text-center';
+                    msgEl.textContent = text;
+                } else {
+                    msgEl.className = 'bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm text-xs';
+                    msgEl.innerHTML = `
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-black text-indigo-700 flex items-center gap-1">
+                                <span>${avatar}</span>
+                                <span>${sender}</span>
+                            </span>
+                            <span class="text-[10px] text-slate-400 font-bold">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        </div>
+                        <p class="font-extrabold text-slate-700">${text}</p>
+                    `;
+                }
+
+                feed.appendChild(msgEl);
+                feed.scrollTop = feed.scrollHeight;
+            }
+
+            broadcastMessage(data) {
+                if (this.broadcastChannel) {
+                    this.broadcastChannel.postMessage(data);
+                }
+            }
+
+            handleNetworkMessage(data) {
+                if (data.type === 'chat') {
+                    soundFx.playPop();
+                    this.addChatMessage(data.user, data.text, 'user', data.avatar);
+                } else if (data.type === 'emoji_reaction') {
+                    soundFx.playMagicChime();
+                    this.showFloatingReaction('tile-local', data.emoji);
+                } else if (data.type === 'hand_state') {
+                    this.addChatMessage('System', `✋ ${data.user} ${data.raised ? 'raised hand' : 'lowered hand'}`, 'system');
+                } else if (data.type === 'draw_stroke') {
+                    this.renderRemoteStroke(data);
+                }
+            }
+
+            renderRemoteStroke(data) {
+                const canvas = document.getElementById('paint-canvas');
+                const ctx = canvas.getContext('2d');
+                ctx.lineWidth = data.size;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.strokeStyle = data.color;
+                ctx.globalAlpha = data.opacity || 1.0;
+                ctx.beginPath();
+                ctx.moveTo(data.fromX, data.fromY);
+                ctx.lineTo(data.toX, data.toY);
+                ctx.stroke();
+            }
+
+            openRoomInfoModal() {
+                soundFx.playPop();
+                document.getElementById('modal-room-id').textContent = this.room.id;
+                document.getElementById('modal-room-pass').textContent = '••••••';
+                document.getElementById('room-info-modal').classList.remove('hidden');
+            }
+
+            closeRoomInfoModal() {
+                soundFx.playPop();
+                document.getElementById('room-info-modal').classList.add('hidden');
+            }
+
+            togglePassVisibility() {
+                const passEl = document.getElementById('modal-room-pass');
+                if (passEl.textContent === '••••••') {
+                    passEl.textContent = this.room.pass;
+                } else {
+                    passEl.textContent = '••••••';
+                }
+            }
+
+            leaveClassroom() {
+                soundFx.playPop();
+                location.reload();
+            }
+
+            initBackgroundParticles() {
+                const canvas = document.getElementById('bg-canvas');
+                const ctx = canvas.getContext('2d');
+                
+                let width = canvas.width = window.innerWidth;
+                let height = canvas.height = window.innerHeight;
+
+                window.addEventListener('resize', () => {
+                    width = canvas.width = window.innerWidth;
+                    height = canvas.height = window.innerHeight;
+                });
+
+                const particles = [];
+                for (let i = 0; i < 30; i++) {
+                    particles.push({
+                        x: Math.random() * width,
+                        y: Math.random() * height,
+                        radius: Math.random() * 14 + 6,
+                        color: ['rgba(255,182,193,0.45)', 'rgba(173,216,230,0.45)', 'rgba(255,255,224,0.45)', 'rgba(221,160,221,0.45)'][Math.floor(Math.random() * 4)],
+                        vx: (Math.random() - 0.5) * 0.7,
+                        vy: (Math.random() - 0.5) * 0.7
+                    });
+                }
+
+                const animateBG = () => {
+                    ctx.clearRect(0, 0, width, height);
+                    particles.forEach(p => {
+                        p.x += p.vx;
+                        p.y += p.vy;
+
+                        if (p.x < 0) p.x = width;
+                        if (p.x > width) p.x = 0;
+                        if (p.y < 0) p.y = height;
+                        if (p.y > height) p.y = 0;
+
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                        ctx.fillStyle = p.color;
+                        ctx.fill();
+                    });
+                    requestAnimationFrame(animateBG);
+                };
+                animateBG();
+            }
+        }
+
+        // Initialize App on DOM Ready
+        let app;
+        window.addEventListener('DOMContentLoaded', () => {
+            app = new KidStudioApp();
+            app.initLoader();
+        });
+    </script>
+</body>
+</html>
